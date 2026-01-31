@@ -162,159 +162,158 @@
     </div>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script>
-      const firebaseConfig = {
-    apiKey: "AIzaSyAd2TrDGYvI2qMbNlN0U23OPTwGvYEkdfA",
-    authDomain: "anas-97c0c.firebaseapp.com",
-    databaseURL: "https://anas-97c0c-default-rtdb.firebaseio.com", // ملاحظة: تأكد من أن هذا هو رابط الـ Database الفعلي لمشروعك (anas-97c0c)
-    projectId: "anas-97c0c",
-    storageBucket: "anas-97c0c.firebasestorage.app",
-    messagingSenderId: "557055512690",
-    appId: "1:557055512690:web:c9de97f643663d016cf2eb",
-    measurementId: "G-1BSWG54JRK"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const database = firebase.database(); // هذا السطر ضروري جداً ليعمل الـ database.ref
-        let specialists = JSON.parse(localStorage.getItem('ican_specs')) || [];
-        let attendance = JSON.parse(localStorage.getItem('ican_att')) || {};
-        let selMonth = null, selMonthName = "", selSpec = null;
-        const now = new Date();
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAd2TrDGYvI2qMbNlN0U23OPTwGvYEkdfA",
+        authDomain: "anas-97c0c.firebaseapp.com",
+        databaseURL: "https://anas-97c0c-default-rtdb.firebaseio.com",
+        projectId: "anas-97c0c",
+        storageBucket: "anas-97c0c.firebasestorage.app",
+        messagingSenderId: "557055512690",
+        appId: "1:557055512690:web:c9de97f643663d016cf2eb"
+    };
 
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-            document.getElementById(id).classList.remove('hidden');
-            if(id === 'specialistMonthScreen') loadMonths();
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    
+    let specialists = []; 
+    let selMonth = null, selMonthName = "", selSpec = null;
+    const now = new Date();
+
+    // جلب الأخصائيين من Firebase فور تحميل الصفحة
+    function loadSpecsFromFirebase() {
+        database.ref('specialists').on('value', (snapshot) => {
+            specialists = snapshot.val() ? Object.values(snapshot.val()) : [];
+            loadSpecsList(); 
+        });
+    }
+    loadSpecsFromFirebase();
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        if(id === 'specialistMonthScreen') loadMonths();
+    }
+
+    function loadMonths() {
+        const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+        const div = document.getElementById('monthButtons');
+        div.innerHTML = "";
+        months.forEach((m, i) => {
+            const b = document.createElement('button');
+            b.className = "action-btn";
+            b.style.background = (i + 1 === now.getMonth() + 1) ? "#f39c12" : "#2196f3";
+            b.textContent = m;
+            b.onclick = () => { selMonth = i + 1; selMonthName = m; showScreen('specPassScreen'); };
+            div.appendChild(b);
+        });
+    }
+
+    function loginAdmin() {
+        if(document.getElementById('adminPassword').value === "1234") {
+            showScreen('adminControlPanel');
+        } else alert("خطأ");
+    }
+
+    function loadSpecsList() {
+        const list = document.getElementById('specialistsList');
+        list.innerHTML = specialists.map((s) => `
+            <div style="background:white; color:#333; padding:10px; margin:5px; border-radius:8px; display:flex; justify-content:space-between;">
+                ${s.name} <button onclick="deleteSpec('${s.name}')" style="color:red; border:none; background:none; cursor:pointer;">حذف</button>
+            </div>
+        `).join('');
+    }
+
+    function addSpecialist() {
+        const name = document.getElementById('newSpecName').value;
+        if(name) {
+            const newSpec = { name: name, pass: name + "1" };
+            database.ref('specialists/' + name).set(newSpec);
+            document.getElementById('newSpecName').value = "";
         }
+    }
 
-        function loadMonths() {
-            const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-            const div = document.getElementById('monthButtons');
-            div.innerHTML = "";
-            months.forEach((m, i) => {
-                const b = document.createElement('button');
-                b.className = "action-btn";
-                b.style.background = (i + 1 === now.getMonth() + 1) ? "#f39c12" : "#2196f3";
-                b.textContent = m;
-                b.onclick = () => { selMonth = i + 1; selMonthName = m; showScreen('specPassScreen'); };
-                div.appendChild(b);
-            });
-        }
+    function deleteSpec(name) {
+        if(confirm("حذف؟")) { database.ref('specialists/' + name).remove(); }
+    }
 
-        function loginAdmin() {
-            if(document.getElementById('adminPassword').value === "1234") {
-                showScreen('adminControlPanel');
-                loadSpecsList();
-            } else alert("خطأ");
-        }
+    function verifySpec() {
+        const p = document.getElementById('specPass').value;
+        const s = specialists.find(x => x.pass === p);
+        if(s) {
+            selSpec = s;
+            document.getElementById('currentSpecName').textContent = s.name;
+            document.getElementById('monthTitle').textContent = "شهر " + selMonthName;
+            showScreen('attendanceScreen');
+            loadDays();
+        } else alert("خطأ في الرمز");
+    }
 
-        function loadSpecsList() {
-            const list = document.getElementById('specialistsList');
-            list.innerHTML = specialists.map((s, i) => `
-                <div style="background:white; color:#333; padding:10px; margin:5px; border-radius:8px; display:flex; justify-content:space-between;">
-                    ${s.name} <button onclick="deleteSpec(${i})" style="color:red; border:none; background:none; cursor:pointer;">حذف</button>
-                </div>
-            `).join('');
-        }
-
-        function addSpecialist() {
-            const name = document.getElementById('newSpecName').value;
-            if(name) {
-                specialists.push({ name: name, pass: name + "1" });
-                localStorage.setItem('ican_specs', JSON.stringify(specialists));
-                loadSpecsList();
-                document.getElementById('newSpecName').value = "";
+    function loadDays() {
+        const container = document.getElementById('daysList');
+        container.innerHTML = "جاري التحميل...";
+        database.ref('attendance/' + selSpec.name + '/' + selMonth).on('value', (snapshot) => {
+            const monthData = snapshot.val() || {};
+            container.innerHTML = "";
+            const daysCount = new Date(2026, selMonth, 0).getDate();
+            for(let d = 1; d <= daysCount; d++) {
+                const data = monthData[d] || {};
+                container.innerHTML += `
+                    <div class="attendance-grid">
+                        <span>${d}</span>
+                        <span class="stat-box">${data.in || '-'}</span>
+                        <span class="stat-box">${data.out || '-'}</span>
+                        <span class="stat-box">${data.delay || 0}د</span>
+                        <span class="stat-box">${data.early || 0}د</span>
+                        <span class="stat-box">${data.over || 0}د</span>
+                    </div>`;
             }
-        }
+            updateBtns(monthData);
+        });
+    }
 
-        function deleteSpec(i) {
-            if(confirm("حذف؟")) { specialists.splice(i, 1); localStorage.setItem('ican_specs', JSON.stringify(specialists)); loadSpecsList(); }
-        }
-
-        function verifySpec() {
-            const p = document.getElementById('specPass').value;
-            const s = specialists.find(x => x.pass === p);
-            if(s) {
-                selSpec = s;
-                document.getElementById('currentSpecName').textContent = s.name;
-                document.getElementById('monthTitle').textContent = "شهر " + selMonthName;
-                showScreen('attendanceScreen');
-                loadDays();
-            } else alert("خطأ");
-        }
-
-       function loadDays() {
-    const container = document.getElementById('daysList');
-    container.innerHTML = "جاري التحميل...";
-
-    // جلب البيانات من المسار المخصص لهذا الأخصائي والشهر
-    database.ref('attendance/' + selSpec.name + '/' + selMonth).once('value', (snapshot) => {
-        const monthData = snapshot.val() || {};
-        container.innerHTML = "";
-        
-        const daysCount = new Date(2026, selMonth, 0).getDate();
-        for(let d = 1; d <= daysCount; d++) {
-            const data = monthData[d] || {};
-            container.innerHTML += `
-                <div class="attendance-grid">
-                    <span>${d}</span>
-                    <span class="stat-box">${data.in || '-'}</span>
-                    <span class="stat-box">${data.out || '-'}</span>
-                    <span class="stat-box">${data.delay || 0}د</span>
-                    <span class="stat-box">${data.early || 0}د</span>
-                    <span class="stat-box">${data.over || 0}د</span>
-                </div>`;
-        }
-        updateBtns();
-    });
-}
-        function updateBtns() {
-    const d = now.getDate();
-    // جلب البيانات من المسار المخصص لليوم الحالي من Firebase
-    database.ref('attendance/' + selSpec.name + '/' + selMonth + '/' + d).once('value', (snapshot) => {
-        const data = snapshot.val() || {};
+    function updateBtns(monthData) {
+        const d = now.getDate();
+        const data = monthData[d] || {};
         document.getElementById('inBtn').disabled = !!data.in;
         document.getElementById('outBtn').disabled = !data.in || !!data.out;
-    });
-}
-        function recordIn() {
-            const t = new Date();
-            const time = t.getHours() + ":" + t.getMinutes().toString().padStart(2, '0');
-            const limit = new Date(); limit.setHours(8, 30, 0);
-            let delay = t > limit ? Math.floor((t - limit) / 60000) : 0;
-            saveData(now.getDate(), { in: time, delay: delay });
-        }
+    }
 
-        function recordOut() {
-            const t = new Date();
-            const time = t.getHours() + ":" + t.getMinutes().toString().padStart(2, '0');
-            const limit = new Date(); limit.setHours(16, 30, 0);
-            let early = t < limit ? Math.floor((limit - t) / 60000) : 0;
-            let over = t > limit ? Math.floor((t - limit) / 60000) : 0;
-            saveData(now.getDate(), { out: time, early: early, over: over });
-        }
+    function recordIn() {
+        const t = new Date();
+        const time = t.getHours() + ":" + t.getMinutes().toString().padStart(2, '0');
+        const limit = new Date(); limit.setHours(8, 30, 0);
+        let delay = t > limit ? Math.floor((t - limit) / 60000) : 0;
+        saveData(now.getDate(), { in: time, delay: delay });
+    }
 
-        function saveData(day, obj) {
-    // تحديد المسار في قاعدة البيانات: Attendance -> اسم الأخصائي -> رقم الشهر -> اليوم
-    const path = 'attendance/' + selSpec.name + '/' + selMonth + '/' + day;
-    
-    database.ref(path).update(obj)
-    .then(() => {
-        alert("تم الحفظ في Firebase بنجاح!");
-        loadDays(); // لتحديث الجدول أمامك
-    })
-    .catch((error) => {
-        console.error("خطأ في الحفظ: ", error);
-    });
-}
-        function viewReports() {
-            showScreen('reportScreen');
-            const container = document.getElementById('reportContainer');
+    function recordOut() {
+        const t = new Date();
+        const time = t.getHours() + ":" + t.getMinutes().toString().padStart(2, '0');
+        const limit = new Date(); limit.setHours(16, 30, 0);
+        let early = t < limit ? Math.floor((limit - t) / 60000) : 0;
+        let over = t > limit ? Math.floor((t - limit) / 60000) : 0;
+        saveData(now.getDate(), { out: time, early: early, over: over });
+    }
+
+    function saveData(day, obj) {
+        database.ref('attendance/' + selSpec.name + '/' + selMonth + '/' + day).update(obj)
+        .then(() => alert("تم التسجيل!"));
+    }
+
+    function viewReports() {
+        showScreen('reportScreen');
+        const container = document.getElementById('reportContainer');
+        container.innerHTML = "جاري جلب التقارير...";
+        
+        database.ref('attendance').once('value', (snapshot) => {
+            const allData = snapshot.val() || {};
             container.innerHTML = "";
             const currentM = now.getMonth() + 1;
 
             specialists.forEach(spec => {
                 let totalDelay = 0, totalOver = 0, totalEarly = 0, days = 0;
-                const monthData = attendance[spec.name]?.[currentM] || {};
+                const monthData = allData[spec.name]?.[currentM] || {};
                 Object.values(monthData).forEach(d => {
                     totalDelay += (d.delay || 0);
                     totalOver += (d.over || 0);
@@ -325,15 +324,13 @@
                 container.innerHTML += `
                     <div class="report-card">
                         <strong>الأخصائي: ${spec.name}</strong><br>
-                        📅 عدد أيام العمل: ${days} يوم<br>
-                        ⏰ إجمالي التأخير: ${totalDelay} دقيقة<br>
-                        🚪 إجمالي انصراف مبكر: ${totalEarly} دقيقة<br>
-                        ➕ إجمالي الإضافي: ${totalOver} دقيقة
+                        📅 أيام العمل: ${days} | ⏰ تأخير: ${totalDelay}د | 🚪 مبكر: ${totalEarly}د | ➕ إضافي: ${totalOver}د
                     </div>`;
             });
-        }
+        });
+    }
 
-        function clearAllData() { if(confirm("مسح؟")) { localStorage.clear(); location.reload(); } }
-    </script>
+    function clearAllData() { if(confirm("سيتم مسح كل شيء من السحابة! هل أنت متأكد؟")) { database.ref('/').remove(); location.reload(); } }
+</script>
 </body>
 </html>
