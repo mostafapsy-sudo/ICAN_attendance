@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام I CAN</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: linear-gradient(135deg, #004d40, #002f6c);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            text-align: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header-logo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 100px;
+            height: auto;
+            z-index: 100;
+        }
+
+        .i-can-bg {
+            font-size: 100px; font-weight: bold; color: rgba(255, 255, 255, 0.03);
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: -1; pointer-events: none;
+        }
+
+        .screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;
+        }
+
+        .hidden { display: none !important; }
+
+        .top-back-btn {
+            position: absolute; top: 20px; left: 20px; background: #555; color: white;
+            padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 16px; font-weight: bold; z-index: 1000;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.15); padding: 30px; border-radius: 25px;
+            backdrop-filter: blur(15px); box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            max-width: 900px; width: 95%; margin: 20px auto; max-height: 80vh; overflow-y: auto;
+        }
+
+        .attendance-buttons-row {
+            display: flex; gap: 15px; width: 100%; margin: 25px 0;
+        }
+        .record-btn {
+            flex: 1; padding: 20px; border-radius: 15px; color: white; font-weight: bold;
+            cursor: pointer; border: none; font-size: 16px; transition: 0.3s;
+        }
+        .in-btn { background: linear-gradient(135deg, #4CAF50, #2E7D32); }
+        .out-btn { background: linear-gradient(135deg, #2196F3, #1976D2); }
+        .record-btn:disabled { background: #888; cursor: not-allowed; opacity: 0.6; }
+
+        .main-btn {
+            padding: 25px; font-size: 28px; border: none; border-radius: 15px; cursor: pointer;
+            font-weight: bold; color: white; width: 100%; max-width: 400px; margin-bottom: 20px;
+        }
+        .admin-btn { background: linear-gradient(135deg, #9c27b0, #673ab7); }
+        .spec-btn { background: linear-gradient(135deg, #2196f3, #00bcd4); }
+
+        .attendance-grid {
+            display: grid; grid-template-columns: 0.5fr 1fr 1fr 0.8fr 0.8fr 0.8fr;
+            gap: 10px; background: rgba(255, 255, 255, 0.95); color: #333; margin: 10px 0;
+            padding: 12px; border-radius: 10px; align-items: center; font-size: 13px;
+        }
+        .stat-box { background: #eee; padding: 5px; border-radius: 5px; }
+
+        .report-card { background: white; color: #333; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: right; line-height: 1.6; }
+
+        input { padding: 15px; border-radius: 10px; border: none; width: 80%; max-width: 300px; font-size: 18px; margin: 10px 0; }
+        .action-btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; background: #4CAF50; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="i-can-bg">I CAN</div>
+
+    <div id="mainScreen" class="screen">
+        <img src="logo.png" alt="I CAN" class="header-logo">
+        <h1 style="font-size: 50px; margin-bottom: 50px;">I CAN</h1>
+        <button class="main-btn admin-btn" onclick="showScreen('adminLoginScreen')">👑 الإدارة</button>
+        <button class="main-btn spec-btn" onclick="showScreen('specialistMonthScreen')">👤 الأخصائي</button>
+    </div>
+
+    <div id="adminLoginScreen" class="screen hidden">
+        <button class="top-back-btn" onclick="showScreen('mainScreen')">🔙</button>
+        <div class="container">
+            <h2>دخول المسؤول</h2>
+            <input type="password" id="adminPassword" placeholder="كلمة المرور">
+            <br>
+            <button class="action-btn" onclick="loginAdmin()">دخول</button>
+        </div>
+    </div>
+
+    <div id="adminControlPanel" class="screen hidden">
+        <button class="top-back-btn" onclick="showScreen('mainScreen')">🔙</button>
+        <div class="container">
+            <h2>لوحة التحكم</h2>
+            <div style="margin: 20px 0;">
+                <input type="text" id="newSpecName" placeholder="الاسم الجديد">
+                <button class="action-btn" onclick="addSpecialist()">إضافة</button>
+            </div>
+            <div id="specialistsList" style="margin-bottom: 20px;"></div>
+            <button class="action-btn" style="background:#17a2b8" onclick="viewReports()">📊 عرض التقارير</button>
+            <button class="action-btn" style="background:#f44336" onclick="clearAllData()">🗑️ مسح البيانات</button>
+        </div>
+    </div>
+
+    <div id="reportScreen" class="screen hidden">
+        <button class="top-back-btn" onclick="showScreen('adminControlPanel')">🔙</button>
+        <div class="container">
+            <h2>📊 تقرير الشهر الحالي</h2>
+            <div id="reportContainer" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="specialistMonthScreen" class="screen hidden">
+        <button class="top-back-btn" onclick="showScreen('mainScreen')">🔙</button>
+        <div class="container">
+            <h2>اختر الشهر</h2>
+            <div id="monthButtons" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="specPassScreen" class="screen hidden">
+        <button class="top-back-btn" onclick="showScreen('specialistMonthScreen')">🔙</button>
+        <div class="container">
+            <h2>التحقق من الهوية</h2>
+            <input type="password" id="specPass" placeholder="الرمز الخاص بك">
+            <br>
+            <button class="action-btn" onclick="verifySpec()">دخول</button>
+        </div>
+    </div>
+
+    <div id="attendanceScreen" class="screen hidden">
+        <button class="top-back-btn" onclick="showScreen('specialistMonthScreen')">🔙</button>
+        <div class="container">
+            <h2 id="monthTitle">📅</h2>
+            <div style="background: white; color: #333; padding: 10px; border-radius: 10px; margin: 10px 0;">
+                <h3>الأخصائي: <span id="currentSpecName"></span></h3>
+            </div>
+
+            <div class="attendance-buttons-row">
+                <button id="inBtn" class="record-btn in-btn" onclick="recordIn()">سجل حضور</button>
+                <button id="outBtn" class="record-btn out-btn" onclick="recordOut()">سجل انصراف</button>
+            </div>
+
+            <div class="attendance-grid" style="background: #002f6c; color: white;">
+                <span>يوم</span><span>حضور</span><span>انصراف</span><span>تأخير</span><span>مبكر</span><span>إضافي</span>
+            </div>
+            <div id="daysList"></div>
+        </div>
+    </div>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
+      const firebaseConfig = {
+    apiKey: "AIzaSyAd2TrDGYvI2qMbNlN0U23OPTwGvYEkdfA",
+    authDomain: "anas-97c0c.firebaseapp.com",
+    databaseURL: "https://anas-97c0c-default-rtdb.firebaseio.com", // ملاحظة: تأكد من أن هذا هو رابط الـ Database الفعلي لمشروعك (anas-97c0c)
+    projectId: "anas-97c0c",
+    storageBucket: "anas-97c0c.firebasestorage.app",
+    messagingSenderId: "557055512690",
+    appId: "1:557055512690:web:c9de97f643663d016cf2eb",
+    measurementId: "G-1BSWG54JRK"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const database = firebase.database(); // هذا السطر ضروري جداً ليعمل الـ database.ref
+        let specialists = JSON.parse(localStorage.getItem('ican_specs')) || [];
+        let attendance = JSON.parse(localStorage.getItem('ican_att')) || {};
+        let selMonth = null, selMonthName = "", selSpec = null;
+        const now = new Date();
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            if(id === 'specialistMonthScreen') loadMonths();
+        }
+
+        function loadMonths() {
+            const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+            const div = document.getElementById('monthButtons');
+            div.innerHTML = "";
+            months.forEach((m, i) => {
+                const b = document.createElement('button');
+                b.className = "action-btn";
+                b.style.background = (i + 1 === now.getMonth() + 1) ? "#f39c12" : "#2196f3";
+                b.textContent = m;
+                b.onclick = () => { selMonth = i + 1; selMonthName = m; showScreen('specPassScreen'); };
+                div.appendChild(b);
+            });
+        }
+
+        function loginAdmin() {
+            if(document.getElementById('adminPassword').value === "1234") {
+                showScreen('adminControlPanel');
+                loadSpecsList();
+            } else alert("خطأ");
+        }
+
+        function loadSpecsList() {
+            const list = document.getElementById('specialistsList');
+            list.innerHTML = specialists.map((s, i) => `
+                <div style="background:white; color:#333; padding:10px; margin:5px; border-radius:8px; display:flex; justify-content:space-between;">
+                    ${s.name} <button onclick="deleteSpec(${i})" style="color:red; border:none; background:none; cursor:pointer;">حذف</button>
+                </div>
+            `).join('');
+        }
+
+        function addSpecialist() {
+            const name = document.getElementById('newSpecName').value;
+            if(name) {
+                specialists.push({ name: name, pass: name + "1" });
+                localStorage.setItem('ican_specs', JSON.stringify(specialists));
+                loadSpecsList();
+                document.getElementById('newSpecName').value = "";
+            }
+        }
+
+        function deleteSpec(i) {
+            if(confirm("حذف؟")) { specialists.splice(i, 1); localStorage.setItem('ican_specs', JSON.stringify(specialists)); loadSpecsList(); }
+        }
+
+        function verifySpec() {
+            const p = document.getElementById('specPass').value;
+            const s = specialists.find(x => x.pass === p);
+            if(s) {
+                selSpec = s;
+                document.getElementById('currentSpecName').textContent = s.name;
+                document.getElementById('monthTitle').textContent = "شهر " + selMonthName;
+                showScreen('attendanceScreen');
+                loadDays();
+            } else alert("خطأ");
+        }
+
+       function loadDays() {
+    const container = document.getElementById('daysList');
+    container.innerHTML = "جاري التحميل...";
+
+    // جلب البيانات من المسار المخصص لهذا الأخصائي والشهر
+    database.ref('attendance/' + selSpec.name + '/' + selMonth).once('value', (snapshot) => {
+        const monthData = snapshot.val() || {};
+        container.innerHTML = "";
+        
+        const daysCount = new Date(2026, selMonth, 0).getDate();
+        for(let d = 1; d <= daysCount; d++) {
+            const data = monthData[d] || {};
+            container.innerHTML += `
+                <div class="attendance-grid">
+                    <span>${d}</span>
+                    <span class="stat-box">${data.in || '-'}</span>
+                    <span class="stat-box">${data.out || '-'}</span>
+                    <span class="stat-box">${data.delay || 0}د</span>
+                    <span class="stat-box">${data.early || 0}د</span>
+                    <span class="stat-box">${data.over || 0}د</span>
+                </div>`;
+        }
+        updateBtns();
+    });
+}
+        function updateBtns() {
+            const d = now.getDate();
+            const data = (attendance[selSpec.name] && attendance[selSpec.name][selMonth]) ? attendance[selSpec.name][selMonth][d] || {} : {};
+            document.getElementById('inBtn').disabled = !!data.in;
+            document.getElementById('outBtn').disabled = !data.in || !!data.out;
+        }
+
+        function recordIn() {
+            const t = new Date();
+            const time = t.getHours() + ":" + t.getMinutes().toString().padStart(2, '0');
+            const limit = new Date(); limit.setHours(8, 30, 0);
+            let delay = t > limit ? Math.floor((t - limit) / 60000) : 0;
+            saveData(now.getDate(), { in: time, delay: delay });
+        }
+
+        function recordOut() {
+            const t = new Date();
+            const time = t.getHours() + ":" + t.getMinutes().toString().padStart(2, '0');
+            const limit = new Date(); limit.setHours(16, 30, 0);
+            let early = t < limit ? Math.floor((limit - t) / 60000) : 0;
+            let over = t > limit ? Math.floor((t - limit) / 60000) : 0;
+            saveData(now.getDate(), { out: time, early: early, over: over });
+        }
+
+        function saveData(day, obj) {
+    // تحديد المسار في قاعدة البيانات: Attendance -> اسم الأخصائي -> رقم الشهر -> اليوم
+    const path = 'attendance/' + selSpec.name + '/' + selMonth + '/' + day;
+    
+    database.ref(path).update(obj)
+    .then(() => {
+        alert("تم الحفظ في Firebase بنجاح!");
+        loadDays(); // لتحديث الجدول أمامك
+    })
+    .catch((error) => {
+        console.error("خطأ في الحفظ: ", error);
+    });
+}
+        function viewReports() {
+            showScreen('reportScreen');
+            const container = document.getElementById('reportContainer');
+            container.innerHTML = "";
+            const currentM = now.getMonth() + 1;
+
+            specialists.forEach(spec => {
+                let totalDelay = 0, totalOver = 0, totalEarly = 0, days = 0;
+                const monthData = attendance[spec.name]?.[currentM] || {};
+                Object.values(monthData).forEach(d => {
+                    totalDelay += (d.delay || 0);
+                    totalOver += (d.over || 0);
+                    totalEarly += (d.early || 0);
+                    if(d.in) days++;
+                });
+
+                container.innerHTML += `
+                    <div class="report-card">
+                        <strong>الأخصائي: ${spec.name}</strong><br>
+                        📅 عدد أيام العمل: ${days} يوم<br>
+                        ⏰ إجمالي التأخير: ${totalDelay} دقيقة<br>
+                        🚪 إجمالي انصراف مبكر: ${totalEarly} دقيقة<br>
+                        ➕ إجمالي الإضافي: ${totalOver} دقيقة
+                    </div>`;
+            });
+        }
+
+        function clearAllData() { if(confirm("مسح؟")) { localStorage.clear(); location.reload(); } }
+    </script>
+</body>
+</html>
