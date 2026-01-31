@@ -268,12 +268,14 @@
     });
 }
         function updateBtns() {
-            const d = now.getDate();
-            const data = (attendance[selSpec.name] && attendance[selSpec.name][selMonth]) ? attendance[selSpec.name][selMonth][d] || {} : {};
-            document.getElementById('inBtn').disabled = !!data.in;
-            document.getElementById('outBtn').disabled = !data.in || !!data.out;
-        }
-
+    const d = now.getDate();
+    // جلب البيانات من المسار المخصص لليوم الحالي من Firebase
+    database.ref('attendance/' + selSpec.name + '/' + selMonth + '/' + d).once('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        document.getElementById('inBtn').disabled = !!data.in;
+        document.getElementById('outBtn').disabled = !data.in || !!data.out;
+    });
+}
         function recordIn() {
             const t = new Date();
             const time = t.getHours() + ":" + t.getMinutes().toString().padStart(2, '0');
