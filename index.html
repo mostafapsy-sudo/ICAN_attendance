@@ -110,7 +110,6 @@
     </style>
 </head>
 <body>
-    <body>
     <img src="logo.png" alt="I CAN Logo" class="header-logo">
     
     <div class="i-can-bg">I CAN</div>
@@ -213,19 +212,22 @@
             <div id="daysList"></div>
         </div>
     </div>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script>
       const firebaseConfig = {
   apiKey: "AIzaSyA5btGtTXfLti7vipnCgkv0Zy2-ry8lxME",
   authDomain: "anas-attedendence-2.firebaseapp.com",
+  databaseURL: "https://anas-attedendence-2-default-rtdb.firebaseio.com",
   projectId: "anas-attedendence-2",
   storageBucket: "anas-attedendence-2.firebasestorage.app",
   messagingSenderId: "474174822973",
-  appId: "1:474174822973:web:8c9f8659c5970145c46854",
-  measurementId: "G-LFBDLR30LQ"
+  appId: "1:474174822973:web:b7df045425c88270c46854",
+  measurementId: "G-PPPPNRCP0R"
 };
-
+// تشغيل Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
         let specialists = JSON.parse(localStorage.getItem('ican_specs')) || [];
         let attendance = JSON.parse(localStorage.getItem('ican_att')) || {};
         let timeConfig = JSON.parse(localStorage.getItem('ican_time_config')) || { in: "08:30", out: "16:30" };
@@ -308,14 +310,19 @@
         }
 
         function addSpecialist() {
-            const name = document.getElementById('newSpecName').value;
-            if(name) {
-                specialists.push({ name: name, pass: name + "1" });
-                localStorage.setItem('ican_specs', JSON.stringify(specialists));
-                loadSpecsList();
-                document.getElementById('newSpecName').value = "";
-            }
-        }
+    const name = document.getElementById('newSpecName').value;
+    if(name) {
+        const newSpec = { name: name, pass: name + "1" };
+        specialists.push(newSpec);
+        
+        // حفظ في Firebase
+        db.ref('specialists/' + name).set(newSpec);
+        
+        localStorage.setItem('ican_specs', JSON.stringify(specialists));
+        loadSpecsList();
+        document.getElementById('newSpecName').value = "";
+    }
+}
 
         function deleteSpec(i) {
             if(confirm("حذف؟")) { specialists.splice(i, 1); localStorage.setItem('ican_specs', JSON.stringify(specialists)); loadSpecsList(); }
@@ -397,13 +404,18 @@
         }
 
         function saveData(day, obj) {
-            if(!attendance[selSpec.name]) attendance[selSpec.name] = {};
-            if(!attendance[selSpec.name][selMonth]) attendance[selSpec.name][selMonth] = {};
-            attendance[selSpec.name][selMonth][day] = { ...attendance[selSpec.name][selMonth][day], ...obj };
-            localStorage.setItem('ican_att', JSON.stringify(attendance));
-            loadDays();
-            alert("تم الحفظ");
-        }
+    if(!attendance[selSpec.name]) attendance[selSpec.name] = {};
+    if(!attendance[selSpec.name][selMonth]) attendance[selSpec.name][selMonth] = {};
+    
+    attendance[selSpec.name][selMonth][day] = { ...attendance[selSpec.name][selMonth][day], ...obj };
+    
+    // الحفظ في Firebase
+    db.ref('attendance/' + selSpec.name + '/' + selMonth + '/' + day).update(obj);
+    
+    localStorage.setItem('ican_att', JSON.stringify(attendance));
+    loadDays();
+    alert("✅ تم المزامنة مع السحابة والحفظ");
+}
 
         function loadMonths() {
             const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
@@ -437,6 +449,22 @@
         }
 
         function clearAllData() { if(confirm("مسح؟")) { localStorage.clear(); location.reload(); } }
-    </script>
+        // جلب البيانات من Firebase عند تشغيل البرنامج
+db.ref('/').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if(data) {
+        if(data.specialists) {
+            specialists = Object.values(data.specialists);
+            localStorage.setItem('ican_specs', JSON.stringify(specialists));
+        }
+        if(data.attendance) {
+            attendance = data.attendance;
+            localStorage.setItem('ican_att', JSON.stringify(attendance));
+        }
+        // تحديث القوائم إذا كانت الشاشة مفتوحة
+        if(isAdminActive) loadSpecsList();
+    }
+});
+</script>
 </body>
 </html>
