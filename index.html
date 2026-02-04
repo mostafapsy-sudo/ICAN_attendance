@@ -225,6 +225,23 @@
         const db = firebase.database();
 
         let specialists = JSON.parse(localStorage.getItem('ican_specs')) || [];
+        // كود الدخول التلقائي عند فتح التطبيق
+window.addEventListener('DOMContentLoaded', (event) => {
+    const savedSpec = localStorage.getItem('logged_spec');
+    if (savedSpec) {
+        selSpec = JSON.parse(savedSpec);
+        // ضبط الشهر الحالي تلقائياً
+        const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+        selMonth = new Date().getMonth() + 1; 
+        selMonthName = months[new Date().getMonth()];
+        
+        // توجيه المستخدم لشاشة الحضور فوراً
+        document.getElementById('currentSpecName').textContent = selSpec.name;
+        document.getElementById('monthTitle').textContent = "شهر " + selMonthName;
+        showScreen('attendanceScreen');
+        loadDays();
+    }
+});
         let attendance = JSON.parse(localStorage.getItem('ican_att')) || {};
         let timeConfig = { in: "08:30", out: "16:30" };
         let selMonth = new Date().getMonth() + 1, selMonthName = "", selSpec = null;
@@ -351,16 +368,21 @@
         }
 
         async function verifySpec() {
-            const p = document.getElementById('specPass').value;
-            const s = specialists.find(x => x.pass === p);
-            if(s) {
-                selSpec = s;
-                document.getElementById('currentSpecName').textContent = s.name;
-                document.getElementById('monthTitle').textContent = "شهر " + selMonthName;
-                showScreen('attendanceScreen');
-                loadDays();
-            } else alert("خطأ");
-        }
+    const p = document.getElementById('specPass').value;
+    const s = specialists.find(x => x.pass === p);
+    if(s) {
+        selSpec = s;
+        // حفظ البيانات في ذاكرة الهاتف
+        localStorage.setItem('logged_spec', JSON.stringify(s)); 
+        
+        document.getElementById('currentSpecName').textContent = s.name;
+        document.getElementById('monthTitle').textContent = "شهر " + selMonthName;
+        showScreen('attendanceScreen');
+        loadDays();
+    } else {
+        alert("خطأ في الرمز");
+    }
+}
 
         function loadDays() {
             const container = document.getElementById('daysList');
